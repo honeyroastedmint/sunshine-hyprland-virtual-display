@@ -64,6 +64,14 @@ Sunshine's `wlr-capture` backend reads `output_name` once at process startup and
 
 The persistent headless avoids that race entirely: the monitor exists and its name is in `sunshine.conf` *before* Sunshine starts, so Sunshine's cached value is always correct.
 
+### Hyprland 0.55+ Lua config provider
+
+Hyprland 0.55 introduced a new Lua-based config provider (`hl.monitor`, `hl.workspace_rule`, `hl.dsp.*`) alongside the classic keyword syntax. The scripts now **auto-detect** which provider is active at startup and emit the matching commands — no configuration needed. Older Hyprland releases keep using the classic `hyprctl keyword` / `dispatch dpms` calls exactly as before, so existing setups are unaffected.
+
+> The Lua path is still experimental. If you're on 0.55+ and a workspace lands on the virtual display when it shouldn't, that's a known rough edge being ironed out — fall back is automatic on older versions.
+
+Thanks to [@X-dark](https://github.com/X-dark) for the 0.55+ port.
+
 ---
 
 ## Requirements
