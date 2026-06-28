@@ -15,6 +15,12 @@
 LOG="$HOME/.local/share/sunshine-headless.log"
 CONF="$HOME/.config/sunshine/sunshine.conf"
 
+# Detect Hyprland config provider
+HYPR_CONF_PROVIDER=legacy
+if [ "$(hyprctl dispatch 'hl.dsp.no_op()')" = "ok" ] ; then
+    HYPR_CONF_PROVIDER=lua
+fi
+
 # --- Clean any HEADLESS leftovers from a previous Hyprland session ----------
 while read -r name; do
     [ -n "$name" ] && hyprctl output remove "$name" >> "$LOG" 2>&1 && sleep 0.3
@@ -36,16 +42,29 @@ fi
 echo "$(date -Iseconds) Headless created: $HEADLESS" >> "$LOG"
 
 # 1920x1080@60, placed far off-screen so it can't be reached with the mouse.
-hyprctl keyword monitor "$HEADLESS,1920x1080@60,9999x0,1" >> "$LOG" 2>&1
+if [ $HYPR_CONF_PROVIDER = "lua" ] ; then
+    hyprctl eval "hl.monitor({output=\"$HEADLESS\", mode=\"1920x1080@60.00\", position=\"9999x0\", scale=1})" >> "$LOG" 2>&1
+else
+    hyprctl keyword monitor "$HEADLESS,1920x1080@60,9999x0,1" >> "$LOG" 2>&1
+fi
 sleep 0.3
 
 # --- Pin workspaces so local windows stay on DP-1 ---------------------------
 # Workspaces 1-10 default to DP-1; workspace 11 lives on HEADLESS and serves
 # as the "remote" workspace that connect.sh migrates into.
-for ws in 1 2 3 4 5 6 7 8 9 10; do
-    hyprctl keyword workspace "$ws, monitor:DP-1, default:true, persistent:false" >> "$LOG" 2>&1
-done
-hyprctl keyword workspace "11, monitor:$HEADLESS, default:true, persistent:true" >> "$LOG" 2>&1
+if [ $HYPR_CONF_PROVIDER = "lua" ] ; then
+    hyprctl eval 'for ws = 1,10 do hl.workspace_rule({workspace=ws, monitor="DP-1", default=true, persistent=false}) end' >> "$LOG" 2>&1
+else
+    for ws in 1 2 3 4 5 6 7 8 9 10; do
+        hyprctl keyword workspace "$ws, monitor:DP-1, default:true, persistent:false" >> "$LOG" 2>&1
+    done
+fi
+
+if [ $HYPR_CONF_PROVIDER = "lua" ] ; then
+    hyprctl eval "hl.workspace_rule({workspace=\"11\", monitor=\"$HEADLESS\", default=true, persistent=true})" >> "$LOG" 2>&1
+else
+    hyprctl keyword workspace "11, monitor:$HEADLESS, default:true, persistent:true" >> "$LOG" 2>&1
+fi
 
 # --- Write the headless name into sunshine.conf BEFORE launching sunshine ---
 # Sunshine reads output_name once and caches it for the process lifetime.
